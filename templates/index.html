@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Phishing URL Detector</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body class="page neutral">
+  <div class="container">
+    <h1>🔍 Phishing URL Detector</h1>
+    <p class="subtitle">Enter a URL below and we'll check whether it's safe or not.</p>
+
+    <div class="input-wrap">
+      <input id="urlInput" placeholder="https://example.com/..." />
+      <button id="checkBtn">Check URL</button>
+    </div>
+
+    <div id="result" class="result hidden">
+      <div id="resultIcon" class="result-icon">🔎</div>
+      <div id="resultText" class="result-text">Waiting for check...</div>
+    </div>
+
+    <div class="foot">Tip: This is model-based detection — always be cautious and double-check before clicking suspicious links.</div>
+  </div>
+
+<script>
+document.getElementById('checkBtn').addEventListener('click', async () => {
+  const url = document.getElementById('urlInput').value.trim();
+  const resultDiv = document.getElementById('result');
+  const text = document.getElementById('resultText');
+  const icon = document.getElementById('resultIcon');
+
+  if (!url) {
+    alert('Please enter a URL.');
+    return;
+  }
+
+  // show loading
+  document.body.className = 'page neutral loading';
+  text.textContent = 'Checking...';
+  icon.textContent = '⏳';
+  resultDiv.classList.remove('hidden');
+
+  try {
+    const resp = await fetch('/predict?url=' + encodeURIComponent(url));
+    if (!resp.ok) {
+      const err = await resp.json().catch(()=>({error:'unknown'}));
+      text.textContent = 'Error: ' + (err.error || resp.statusText);
+      document.body.className = 'page neutral';
+      icon.textContent = '❗';
+      return;
+    }
+    const data = await resp.json();
+    if (data.status === 'safe') {
+      document.body.className = 'page safe';
+      icon.textContent = '✅';
+      text.textContent = `Safe — ${data.url}`;
+    } else if (data.status === 'phishing') {
+      document.body.className = 'page danger';
+      icon.textContent = '⛔';
+      text.textContent = `Phishing or suspicious — ${data.url}`;
+    } else {
+      document.body.className = 'page neutral';
+      icon.textContent = '❓';
+      text.textContent = `Unknown result: ${data.status}`;
+    }
+  } catch (err) {
+    document.body.className = 'page neutral';
+    icon.textContent = '❗';
+    text.textContent = 'Network or server error';
+    console.error(err);
+  }
+});
+</script>
+</body>
+</html>
